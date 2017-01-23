@@ -41,7 +41,7 @@ on init
 
     # Create cgroup mount point for memory
     mkdir /sys/fs/cgroup/memory/bg 0750 root system
-    write /sys/fs/cgroup/memory/bg/memory.swappiness 140
+    write /sys/fs/cgroup/memory/bg/memory.swappiness 60
     write /sys/fs/cgroup/memory/bg/memory.move_charge_at_immigrate 1
     chown root system /sys/fs/cgroup/memory/bg/tasks
     chmod 0660 /sys/fs/cgroup/memory/bg/tasks
@@ -51,22 +51,22 @@ on early-boot
     setrlimit 8 67108864 67108864
 
     # Set aggressive read ahead during boot up
-    write /sys/block/dm-0/queue/read_ahead_kb 2048
-    write /sys/block/dm-1/queue/read_ahead_kb 2048
-    write /sys/block/sda/queue/read_ahead_kb 2048
-    write /sys/block/sde/queue/read_ahead_kb 2048
+    write /sys/block/dm-0/queue/read_ahead_kb 0
+    write /sys/block/dm-1/queue/read_ahead_kb 0
+    write /sys/block/sda/queue/read_ahead_kb 0
+    write /sys/block/sde/queue/read_ahead_kb 0
 
     # Allow subsystem (modem etc) debugging
     write /sys/kernel/boot_adsp/boot 1
     write /sys/kernel/boot_slpi/boot 1
 
     # SSR setup
-    write /sys/bus/msm_subsys/devices/subsys0/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys1/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys2/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys3/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys4/restart_level "related"
-    write /sys/bus/msm_subsys/devices/subsys5/restart_level "related"
+    write /sys/bus/msm_subsys/devices/subsys0/restart_level "system"
+    write /sys/bus/msm_subsys/devices/subsys1/restart_level "system"
+    write /sys/bus/msm_subsys/devices/subsys2/restart_level "system"
+    write /sys/bus/msm_subsys/devices/subsys3/restart_level "system"
+    write /sys/bus/msm_subsys/devices/subsys4/restart_level "system"
+    write /sys/bus/msm_subsys/devices/subsys5/restart_level "system"
 
 on boot
     chown bluetooth bluetooth /sys/module/bluetooth_power/parameters/power
@@ -360,13 +360,11 @@ on post-fs-data
 
 service ssr_setup /system/bin/ssr_setup
     oneshot
-    disabled
 
 service ss_ramdump /system/bin/subsystem_ramdump
     class main
     user system
     group system
-    disabled
 
 on property:persist.sys.ssr.enable_debug=*
     write /sys/module/subsystem_restart/parameters/enable_debug ${persist.sys.ssr.enable_debug}
@@ -394,10 +392,10 @@ on property:persist.sys.ssr.enable_ramdumps=0
 on property:sys.boot_completed=1
     write /dev/kmsg "Boot completed "
     # Reset read ahead to 512kb
-    write /sys/block/dm-0/queue/read_ahead_kb 512
-    write /sys/block/dm-1/queue/read_ahead_kb 512
-    write /sys/block/sda/queue/read_ahead_kb 512
-    write /sys/block/sde/queue/read_ahead_kb 512
+    write /sys/block/dm-0/queue/read_ahead_kb 0
+    write /sys/block/dm-1/queue/read_ahead_kb 0
+    write /sys/block/sda/queue/read_ahead_kb 0
+    write /sys/block/sde/queue/read_ahead_kb 0
 
     # CPE fw_name used by sound trigger HAL
     chown media audio /sys/kernel/wcd_cpe0/fw_name
@@ -429,19 +427,17 @@ on property:vold.decrypt=trigger_restart_framework
     start config_bt_addr
 
 on property:persist.env.fastdorm.enabled=true
-    setprop persist.radio.data_no_toggle 1
+    setprop persist.radio.data_no_toggle 0
 
 service cnd /system/bin/cnd
     class main
     socket cnd stream 660 root inet
     group root wakelock
-    writepid /dev/cpuset/system-background/tasks
 
 service dpmd /system/bin/dpmd
-    class late_start
+    class main
     socket dpmd stream 660 root system
     group system readproc
-    writepid /dev/cpuset/system-background/tasks
 
 service irsc_util /system/bin/irsc_util "/etc/sec_config"
     class core
@@ -452,18 +448,15 @@ service rmt_storage /system/bin/rmt_storage
     class core
     user root
     group system wakelock
-    writepid /dev/cpuset/system-background/tasks
 
 service rfs_access /system/bin/rfs_access
     class core
     user root
     group system net_raw
-    writepid /dev/cpuset/system-background/tasks
 
 service tftp_server /system/bin/tftp_server
     class core
     user root
-    writepid /dev/cpuset/system-background/tasks
 
 on property:wc_transport.start_hci=true
     start start_hci_filter
@@ -472,10 +465,9 @@ on property:wc_transport.start_hci=false
     stop start_hci_filter
 
 service start_hci_filter /system/bin/wcnss_filter
-    class late_start
+    class main
     user bluetooth
     group bluetooth qcom_diag system wakelock
-    disabled
 
 service config_bt_addr /system/bin/btnvtool -O
     class core
@@ -486,8 +478,7 @@ service config_bt_addr /system/bin/btnvtool -O
 service btsnoop /system/bin/btsnoop
     user bluetooth
     group bluetooth net_bt_admin sdcard_rw sdcard_r media_rw
-    class late_start
-    disabled
+    class main
     oneshot
 
 service port-bridge /system/bin/port-bridge
@@ -500,12 +491,10 @@ service qmuxd /system/bin/qmuxd
     class main
     user root
     group radio audio bluetooth gps nfc qcom_diag wakelock
-    writepid /dev/cpuset/system-background/tasks
 
 service netmgrd /system/bin/netmgrd
     class main
     group radio system wakelock
-    writepid /dev/cpuset/system-background/tasks
 
 service ipacm-diag /system/bin/ipacm-diag
     class main
@@ -517,19 +506,16 @@ service ipacm /system/bin/ipacm
     class main
     user net_admin
     group net_admin inet
-    writepid /dev/cpuset/system-background/tasks
 
 service qti /system/vendor/bin/qti
     class main
     user radio
     group radio net_raw qcom_diag usb net_admin
-    writepid /dev/cpuset/system-background/tasks
 
 service sensors /system/bin/sensors.qcom
     class core
     user root
     group root
-    writepid /dev/cpuset/system-background/tasks
 
 on property:ro.use_data_netmgrd=false
     # netmgr not supported on specific target
@@ -543,48 +529,45 @@ on property:ro.data.large_tcp_window_size=true
 on property:sys.sysctl.tcp_adv_win_scale=*
     write /proc/sys/net/ipv4/tcp_adv_win_scale ${sys.sysctl.tcp_adv_win_scale}
 
-service p2p_supplicant /system/bin/wpa_supplicant \
-    -ip2p0 -Dnl80211 -c/data/misc/wifi/p2p_supplicant.conf \
-    -I/system/etc/wifi/p2p_supplicant_overlay.conf -N \
-    -iwlan0 -Dnl80211 -c/data/misc/wifi/wpa_supplicant.conf \
-    -I/system/etc/wifi/wpa_supplicant_overlay.conf \
-    -O/data/misc/wifi/sockets -puse_p2p_group_interface=1 \
+service p2p_supplicant /system/bin/wpa_supplicant
+    -ip2p0 -Dnl80211 -c/data/misc/wifi/p2p_supplicant.conf
+    -I/system/etc/wifi/p2p_supplicant_overlay.conf -N
+    -iwlan0 -Dnl80211 -c/data/misc/wifi/wpa_supplicant.conf
+    -I/system/etc/wifi/wpa_supplicant_overlay.conf
+    -O/data/misc/wifi/sockets -puse_p2p_group_interface=1
     -e/data/misc/wifi/entropy.bin -g@android:wpa_wlan0
     #   we will start as root and wpa_supplicant will switch to user wifi
     #   after setting up the capabilities required for WEXT
-    #   user wifi
-    #   group wifi inet keystore
+    user wifi
+    group wifi inet keystore
     class main
     socket wpa_wlan0 dgram 660 wifi wifi
-    disabled
     oneshot
 
-service wpa_supplicant /system/bin/wpa_supplicant \
-    -iwlan0 -Dnl80211 -c/data/misc/wifi/wpa_supplicant.conf \
-    -I/system/etc/wifi/wpa_supplicant_overlay.conf \
-    -O/data/misc/wifi/sockets \
+service wpa_supplicant /system/bin/wpa_supplicant
+    -iwlan0 -Dnl80211 -c/data/misc/wifi/wpa_supplicant.conf
+    -I/system/etc/wifi/wpa_supplicant_overlay.conf
+    -O/data/misc/wifi/sockets
     -e/data/misc/wifi/entropy.bin -g@android:wpa_wlan0
     #   we will start as root and wpa_supplicant will switch to user wifi
     #   after setting up the capabilities required for WEXT
-    #   user wifi
-    #   group wifi inet keystore
+    user wifi
+    group wifi inet keystore
     class main
     socket wpa_wlan0 dgram 660 wifi wifi
-    disabled
     oneshot
 
-service wigig_supplicant /system/bin/wpa_supplicant \
-    -iwigig0 -Dnl80211 -c/data/misc/wifi/wigig_supplicant.conf \
-    -m/data/misc/wifi/wigig_p2p_supplicant.conf \
-    -O/data/misc/wifi/wigig_sockets \
+service wigig_supplicant /system/bin/wpa_supplicant
+    -iwigig0 -Dnl80211 -c/data/misc/wifi/wigig_supplicant.conf
+    -m/data/misc/wifi/wigig_p2p_supplicant.conf
+    -O/data/misc/wifi/wigig_sockets
     -e/data/misc/wifi/wigig_entropy.bin -g@android:wpa_wigig0
     #   we will start as root and wpa_supplicant will switch to user wifi
     #   after setting up the capabilities required for WEXT
-    #   user wifi
-    #   group wifi inet keystore
+    user wifi
+    group wifi inet keystore
     class main
     socket wpa_wigig0 dgram 660 wifi wifi
-    disabled
     oneshot
 
 # FST Manager with hostapd (softap) - all settings inside ini file
@@ -592,7 +575,6 @@ service fstman /system/bin/fstman -B -ddd -c /data/misc/wifi/fstman.ini
     user wifi
     group wifi net_admin net_raw
     class main
-    disabled
     oneshot
 
 # FST Manager with supplicant - connect to supplicant socket
@@ -600,7 +582,6 @@ service fstman_wlan0 /system/bin/fstman -B -ddd -c /data/misc/wifi/fstman.ini @a
     user wifi
     group wifi net_admin net_raw
     class main
-    disabled
     oneshot
 
 on property:netd.fstman.start=true
@@ -613,11 +594,10 @@ service cnss_diag /system/bin/cnss_diag -q -f
     class main
     user system
     group system wifi inet net_admin sdcard_rw media_rw diag
-    disabled
     oneshot
 
 service cnss-daemon /system/bin/cnss-daemon -n -l
-    class late_start
+    class main
     user system
     group system inet net_admin wifi
 
@@ -626,14 +606,12 @@ on property:sys.shutdown.requested=*
 
 service loc_launcher /system/bin/loc_launcher
     #loc_launcher will start as root and set its uid to gps
-    class late_start
+    class main
     group gps inet qcom_diag wifi
-    writepid /dev/cpuset/system-background/tasks
 
 service drmdiag /system/bin/drmdiagapp
-    class late_start
+    class main
     user root
-    disabled
     oneshot
 
 on property:drmdiag.load=1
@@ -643,7 +621,7 @@ on property:drmdiag.load=0
     stop drmdiag
 
 service qcom-sh /system/bin/sh /init.qcom.sh
-    class late_start
+    class main
     user root
     oneshot
 
@@ -653,16 +631,14 @@ service leds-sh /system/bin/sh /system/etc/init.leds.sh
     oneshot
 
 service hostapd /system/bin/hostapd /data/hostapd/hostapd.conf
-    class late_start
+    class main
     user root
     group root
     oneshot
-    disabled
 
 service ims_regmanager /system/bin/exe-ims-regmanagerprocessnative
-    class late_start
+    class main
     group net_bt_admin inet radio wifi
-    disabled
 
 on property:persist.ims.regmanager.mode=1
     start ims_regmanager
@@ -679,23 +655,19 @@ service ril-daemon2 /system/bin/rild -c 2
     group radio cache inet misc audio log readproc wakelock qcom_diag
 
 service ssr_diag /system/bin/ssr_diag
-    class late_start
+    class main
     user system
     group system
-    disabled
 
 service msm_irqbalance /system/bin/msm_irqbalance -f /system/vendor/etc/msm_irqbalance.conf
     class core
     user root
     group root
-    disabled
-    writepid /dev/cpuset/system-background/tasks
 
 service qseeproxydaemon /system/vendor/bin/qseeproxydaemon
-    class late_start
+    class main
     user system
     group system
-    writepid /dev/cpuset/system-background/tasks
 
 on property:vold.decrypt=trigger_restart_min_framework
     start time_daemon
